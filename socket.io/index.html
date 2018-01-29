@@ -1,0 +1,191 @@
+
+<!DOCTYPE html>
+<html lang="en" ng-app="app">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="description" content="Página criada para testar o socket do APP iBoltt">
+        <meta name="author" content="Rogerio Alencar Filho">
+        <title>Teste Socket</title>
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
+
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap-theme.min.css" integrity="sha384-rHyoN1iRsVXV4nD0JutlnGaslCJuC7uwjduW9SVrLvRYooPp2bWYgmgJQIXwl/Sp" crossorigin="anonymous">
+
+
+        <script src="https://developer.iboltt.com/socket.io/socket.io.js"></script>
+
+       
+        <!-- map -->
+        <script type="text/javascript" src="https://maps.googleapis.com/maps/api/js?key=AIzaSyB-l8kS_sdImtVJJsw-ym3mkCa4vTMMAkU"></script>
+        <!-- end -->
+
+
+        <style>
+            #map-canvas {
+                width: 100%;
+                height: 300px;
+                
+            }
+        </style>
+
+    </head>
+
+    <body  ng-controller="myCtrl">
+        <div class="container">
+            <div class="page-header">
+                <h1>Pagina de Teste para o Socket do APP iBoltt</h1>
+                <p class="lead">Use o formulário abaixo para testar a conectividade do socket e para demais testes.</p>
+            </div>
+            <h3>Formuár</h3>
+            <p>
+                <div ng-if="connect" class="alert alert-success" role="alert"> <strong>Conectado.</strong> Inicie os testes.</div>
+                <div ng-if="!connect" class="alert alert-danger" role="alert"> <strong>Não conectado.</strong> Aguardando conexão com o socket..</div>
+            </p>
+            <div class="row">
+                <div class="col-md-4">
+
+                    <form>
+                        <div class="form-group">
+                            <label for="exampleInputEmail1">driver_id</label>
+                            <input type="text" class="form-control" name="driver_id" ng-model="dataSocket.driver_id" id="driver_id" placeholder="">
+                        </div>
+                        <div class="form-group">
+                            <label for="lat">lat</label>
+                            <input type="text" class="form-control" name="lat" ng-model="dataSocket.lat" id="lat" placeholder="">
+                        </div>
+                        <div class="form-group">
+                            <label for="lng">lng</label>
+                            <input type="text" class="form-control" name="lng" ng-model="dataSocket.lng" id="lng" placeholder="">
+                        </div>
+                            
+                        <button type="button" class="btn btn-default" ng-click="sendSocket(dataSocket)">Enviar</button>
+                    </form>
+
+                </div>
+                <div class="col-md-4">
+                    <div id="map-canvas"></div>
+                </div>
+                <div class="col-md-4">
+                    <h4>Resultados</h4>
+                        <ul class="list-group" >
+                            <li class="list-group-item" ng-repeat="u in updates">
+                                {{$index}} {{u.title}} - {{u.message}}
+                            </li>
+                            
+                        </ul>
+                </div>
+            </div>
+        </div> 
+
+        <script src="bower_components/angular/angular.min.js"></script>
+        <script src="bower_components/angular-socket-io/socket.min.js"></script>
+        <script src="http://10.20.2.119:3000/socket.io/socket.io.js"></script>
+        
+        <script>
+            'use strict;'
+            var app = angular.module('app', ['btford.socket-io'])
+        
+            app.factory('mySocket', ['socketFactory', function (socketFactory) {
+                var myIoSocket = io.connect('http://10.20.2.119:3000');
+                socketFactory = socketFactory({
+                    ioSocket: myIoSocket
+                });
+                return socketFactory;
+            }]);
+        
+            app.controller('myCtrl', ['$scope', 'mySocket', '$interval', '$timeout', function ($scope, mySocket, $interval, $timeout) {
+                $scope.dataSocket = {
+                    driver_id: 1,
+                    lat: -8.047562,
+                    lng: -34.876964
+                };
+                $scope.connect = false;
+                $scope.myLatLng;
+                $scope.myOptions;
+                $scope.map;
+                $scope.marker;
+                $scope.updates = [];
+                
+                $scope.change = function(lat, lng){
+                    $scope.dataSocket = {
+                        lat: lat,
+                        lng: lng
+                    };
+                };
+
+                mySocket.on('connect', function(){
+                    console.log('connect')
+                    $scope.connect = true;
+                });
+
+                $scope.sendSocket = function(data) {
+                    console.log('Enviar dados', data)
+                    mySocket.emit('lastLocationDriver', data);
+                };
+
+                mySocket.on('update', function(data){
+                    console.log('update', data);
+                    $scope.updates.push(data)
+                });
+
+                mySocket.on('errors', function(data){
+                    console.log('errors', data);
+                });
+
+                $scope.initialize = function (){    
+                    $scope.myLatLng = new google.maps.LatLng( $scope.dataSocket.lat, $scope.dataSocket.lng );
+                    $scope.myOptions = {
+                            zoom: 4,
+                            center: $scope.myLatLng,
+                            mapTypeId: google.maps.MapTypeId.ROADMAP
+                            };
+                    $scope.map = new google.maps.Map( document.getElementById( 'map-canvas' ), $scope.myOptions );
+                    $scope.marker = new google.maps.Marker( { position: $scope.myLatLng, map: $scope.map, draggable: true } );
+
+                    $scope.marker.setMap( $scope.map );
+                    $scope.moveBus( $scope.map, $scope.marker );
+
+                    google.maps.event.addListener($scope.marker,'drag',function(event) {
+
+                        if(this.position.lat()) {
+                            $timeout(function(){
+                                $scope.change(this.position.lat(), this.position.lng());
+                            }, 20)
+                        }
+                       
+                        
+                        // document.getElementById('lat').value = 
+                        // document.getElementById('lng').value = 
+                        // alert('Drag end');
+                    });
+                };
+
+                $scope.moveBus = function( map, marker ) {
+                    console.log('marker')
+                    $scope.marker.setPosition( new google.maps.LatLng( 0, 0 ) );
+                    $scope.map.panTo( new google.maps.LatLng( 0, 0 ) );
+
+                };
+
+                $timeout(function(){
+                    $scope.initialize();
+                }, 1000)
+
+                
+
+
+                
+
+                // $interval(function () {
+                //     mySocket.emit('testeLocation', {
+                //         data: 'Testando Ping'
+                //     })
+                //     mySocket.on('testeRetornoLocation', (object) => console.log(object))
+                    
+                // }, 6000)
+        
+            }])
+        </script>
+    </body>
+</html>

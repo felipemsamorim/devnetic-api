@@ -1,0 +1,26 @@
+{
+  "name": "socket.io",
+  "description": "Teste de Socket.io",
+  "main": "app.js",
+  "keywords": [
+    "socket",
+    "nodejs",
+    "angular"
+  ],
+  "authors": [
+    "Higor Diego"
+  ],
+  "license": "MIT",
+  "homepage": "https://iboltt.com",
+  "private": true,
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ],
+  "dependencies": {
+    "angular": "^1.6.6"
+  }
+}
